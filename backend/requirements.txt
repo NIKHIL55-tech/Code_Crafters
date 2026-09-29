@@ -1,0 +1,7 @@
+fastapi[all]
+sqlalchemy
+pydantic
+pydantic-settings
+uvicorn
+groq
+requests
