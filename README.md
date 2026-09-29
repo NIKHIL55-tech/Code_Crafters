@@ -1,85 +1,1880 @@
-# Code Crafter - Universal AI Workspace
+# Hack With Hyderabad 3.0 — Project-Scoped Persistent AI Memory Workspace
 
-## Project Objective
-Build a reliable, polished, demonstrable prototype whose central innovation is **PROJECT-SCOPED PERSISTENT AI MEMORY** across multiple independent chats.
+## Table of Contents
 
-## Problem
-Normal AI chat systems often lose important context when a user starts a new conversation, switches tasks within a project, or returns to a project after some time. Users repeatedly have to explain architecture, design decisions, and constraints.
+1. [Project Overview](#project-overview)
+2. [Problem Statement](#problem-statement)
+3. [Core Idea](#core-idea)
+4. [Project Objectives](#project-objectives)
+5. [Key Innovation](#key-innovation)
+6. [Product Concept](#product-concept)
+7. [How the System Works](#how-the-system-works)
+8. [Architecture](#architecture)
+9. [Technology Stack](#technology-stack)
+10. [Groq and LLM Layer](#groq-and-llm-layer)
+11. [Hindsight Memory Layer](#hindsight-memory-layer)
+12. [Retain and Recall](#retain-and-recall)
+13. [Project-Scoped Memory Isolation](#project-scoped-memory-isolation)
+14. [UUID-Based Project Identity](#uuid-based-project-identity)
+15. [Memory Toggle](#memory-toggle)
+16. [Memory Inspector](#memory-inspector)
+17. [Project Brief and Mental Models](#project-brief-and-mental-models)
+18. [Multiple Chats Within a Project](#multiple-chats-within-a-project)
+19. [Memory-Aware Response Generation](#memory-aware-response-generation)
+20. [Memory-Off Behavior](#memory-off-behavior)
+21. [Current-Conversation Context](#current-conversation-context)
+22. [Memory Extraction and Gating](#memory-extraction-and-gating)
+23. [Persona System](#persona-system)
+24. [End-to-End Data Flow](#end-to-end-data-flow)
+25. [Cross-Project Isolation and Security](#cross-project-isolation-and-security)
+26. [Frontend Architecture](#frontend-architecture)
+27. [Backend Architecture](#backend-architecture)
+28. [Database Architecture](#database-architecture)
+29. [API Responsibilities](#api-responsibilities)
+30. [User Experience](#user-experience)
+31. [Demo Workflow](#demo-workflow)
+32. [Example Scenario](#example-scenario)
+33. [Project Structure](#project-structure)
+34. [Environment Configuration](#environment-configuration)
+35. [Installation and Setup](#installation-and-setup)
+36. [Running the Application](#running-the-application)
+37. [Memory and Project Isolation Verification](#memory-and-project-isolation-verification)
+38. [Testing](#testing)
+39. [Design Decisions](#design-decisions)
+40. [Current Limitations](#current-limitations)
+41. [Future Roadmap](#future-roadmap)
+42. [Why This Approach Matters](#why-this-approach-matters)
+43. [Conclusion](#conclusion)
 
-## Solution - Universal AI Workspace
-A universal AI workspace where users create Projects and select a professional persona (Coding, Medical, Legal, Research, Business, General). Each project has its own isolated, persistent memory. When users start a new chat within the same project, the AI recalls relevant information from previous conversations through Hindsight, providing context-aware responses.
+---
 
-## Core Features
+# Project Overview
 
-### Projects and Multiple Chats
-Users can create distinct projects. A single project can contain multiple independent chats (e.g., Backend, Frontend, Database). All chats within a project share the same project-scoped memory.
+**Hack With Hyderabad 3.0 Prototype** is a universal AI workspace designed around one central capability:
 
-### Hindsight Persistent Memory
-The system integrates with **Hindsight Cloud** as a dedicated long-term memory layer to perform RETAIN and RECALL operations.
+> **Project-scoped persistent AI memory across multiple independent chats.**
 
-### RETAIN / RECALL Pipeline
-- **RETAIN:** When a user and assistant interact, a memory extraction gate (powered by Groq) analyzes the exchange to determine if it contains durable, useful project knowledge (e.g., explicit decisions, architecture, tech choices). If so, it is retained in Hindsight.
-- **RECALL:** When the user sends a new message, the backend recalls relevant facts from Hindsight and injects them into the context before generating the response.
+The prototype addresses a fundamental limitation of conventional conversational AI systems: important project context is often trapped inside individual conversations. When a user starts a new chat, returns to a project later, or separates work into different conversations, they frequently have to repeat decisions, requirements, architecture details, technologies, constraints, and other important information.
 
-### Project-Scoped Memory & UUID Isolation
-Each project has a strict memory boundary using **UUID-based project identifiers** (`project_identifier`). Strict tagging (`tags_match: "all_strict"`) ensures that queries in one project only recall memories associated with that exact project. Cross-project isolation guarantees memory from Project A cannot leak into Project B.
+This project introduces a workspace-oriented architecture in which a user creates a **Project**, and all conversations belonging to that project can share a persistent memory layer.
 
-### Memory ON / OFF
-A UI feature allows users to toggle memory:
-- **OFF**: No Hindsight recall is performed. The assistant operates statelessly (only utilizing the current conversation's chat history) and clearly states if it lacks project-specific context.
-- **ON**: Hindsight recall is performed and context is injected into the prompt.
+The persistent memory layer is powered by **Hindsight Cloud**. Hindsight is responsible for retaining durable information and retrieving relevant memories when a later query requires project context.
 
-### Memory Inspector
-A UI component that displays the real retrieved memory information (content, relevance, source) when memory is ON, providing transparency and traceability.
+The final answer is generated by a large language model accessed through **Groq**. The backend combines the user's current message, appropriate current-chat context, selected persona instructions, and — when memory is enabled — relevant project-scoped memories retrieved from Hindsight.
 
-### Project Brief & Hindsight Mental Models
-An automated "Project Brief" is generated for each project using **Hindsight Mental Models**. It synthesizes the durable project memories into a coherent summary document that users can view to understand the current state and architecture of their project. 
+The result is an AI workspace where conversations remain independent at the chat level while still being connected through a controlled project-level memory boundary.
 
-### Groq LLM Integration & Persona System
-**Groq** serves as the LLM inference layer, powering both conversational responses and memory evaluation. Users select a persona (e.g., Coding, Legal) for each project, which adjusts the system prompt.
+---
 
-## Architecture
-- **Frontend**: Next.js, TypeScript, Tailwind CSS, App Router
-- **Backend**: Python, FastAPI, Pydantic, SQLAlchemy
-- **LLM**: Groq API (`llama3-8b-8192`)
-- **Persistent Memory**: Hindsight Cloud
-- **Local Database**: SQLite
+# Problem Statement
 
-## Setup Instructions
+Traditional AI chat applications generally organize conversations as independent threads.
 
-### Environment Variables
-Copy `.env.example` to `.env` in the `backend` directory and fill in your credentials:
-- `GROQ_API_KEY`
-- `GROQ_MODEL`
-- `HINDSIGHT_API_KEY`
-- `HINDSIGHT_BASE_URL`
-- `HINDSIGHT_BANK_ID`
-- `DATABASE_URL`
+This creates several practical problems for users working on long-running projects.
 
-### Running Backend
+For example, a developer may have:
+
+- one chat for backend development,
+- another chat for frontend development,
+- another chat for database design,
+- another chat for debugging,
+- another chat for deployment,
+- and another chat several days later.
+
+A decision made in one conversation may be relevant to another conversation, but the second conversation may not automatically know about it.
+
+The user is therefore forced to repeatedly provide information such as:
+
+- chosen technology stack,
+- architecture decisions,
+- database choice,
+- authentication mechanism,
+- project requirements,
+- constraints,
+- design decisions,
+- implementation decisions,
+- and other durable project facts.
+
+This repetition becomes increasingly inconvenient as projects grow.
+
+The objective of this prototype is to provide a structured solution:
+
+> **Keep chats independent while allowing durable project knowledge to persist across them.**
+
+---
+
+# Core Idea
+
+The application introduces a hierarchy:
+
+```text
+User
+  │
+  ├── Project A
+  │     ├── Chat 1
+  │     ├── Chat 2
+  │     └── Chat 3
+  │
+  └── Project B
+        ├── Chat 1
+        └── Chat 2
+```
+
+Chats remain independent conversations.
+
+However, each project owns a separate persistent memory namespace.
+
+Therefore:
+
+```text
+Chat 1 ──┐
+Chat 2 ──┼──> Project Memory
+Chat 3 ──┘
+```
+
+while:
+
+```text
+Project A Memory ≠ Project B Memory
+```
+
+This allows information to survive across chats without allowing unrelated projects to share knowledge.
+
+---
+
+# Project Objectives
+
+The prototype is designed to demonstrate the following capabilities:
+
+1. Create independent projects.
+2. Associate multiple chats with each project.
+3. Maintain durable project-scoped memories.
+4. Persist important project decisions beyond a single conversation.
+5. Retrieve relevant memories when answering future questions.
+6. Allow users to explicitly turn memory ON or OFF.
+7. Display retrieved memories through a Memory Inspector.
+8. Generate a project-level Project Brief from durable memories.
+9. Use Hindsight as a dedicated persistent memory system.
+10. Use Groq as the LLM inference layer.
+11. Keep project memories isolated from other projects.
+12. Prevent untagged or unrelated memories from entering project context.
+13. Preserve useful current-conversation context even when long-term memory is disabled.
+14. Avoid inventing project history that the user never established.
+15. Keep responses concise when the user merely makes a project decision rather than requesting a tutorial.
+
+---
+
+# Key Innovation
+
+The central innovation is not simply "adding a memory feature."
+
+The important architectural distinction is:
+
+> **Memory belongs to the Project, not to an individual Chat.**
+
+A project can therefore have many independent chats while maintaining one persistent project memory boundary.
+
+This creates a three-level context model:
+
+```text
+Current Message
+      │
+      ▼
+Current Chat Context
+      │
+      ▼
+Project-Scoped Long-Term Memory
+      │
+      ▼
+Project-Level Knowledge / Brief
+```
+
+Each layer has a different purpose.
+
+### Current Message
+
+The immediate user request.
+
+### Current Chat Context
+
+Recent messages from the current conversation.
+
+### Project Memory
+
+Durable information that has been intentionally retained for the project.
+
+### Project Brief
+
+A higher-level synthesized representation of the project's durable knowledge.
+
+---
+
+# Product Concept
+
+The application is designed as a universal AI workspace.
+
+A user can create a project and choose a professional persona such as:
+
+- Coding
+- Medical
+- Legal
+- Research
+- Business
+- General
+
+The selected persona influences how the AI responds.
+
+Each project has:
+
+- its own chats,
+- its own memory,
+- its own Project Brief,
+- its own Memory Inspector results,
+- and its own context boundary.
+
+The project therefore acts as the primary organizational and memory boundary.
+
+---
+
+# How the System Works
+
+At a high level, a user sends a message:
+
+```text
+User
+  │
+  ▼
+Next.js Frontend
+  │
+  ▼
+FastAPI Backend
+  │
+  ├── Current chat context
+  │
+  ├── Project metadata
+  │
+  ├── Memory ON/OFF decision
+  │
+  └── Hindsight recall
+          │
+          ▼
+     Project memories
+          │
+          ▼
+       Groq LLM
+          │
+          ▼
+      AI response
+```
+
+When a message contains information that is considered durable project knowledge, the memory pipeline can evaluate and retain that information in Hindsight.
+
+When a later message requires project context and memory is enabled, the backend performs a project-scoped recall.
+
+The retrieved memories are then supplied to the LLM as contextual information.
+
+---
+
+# Architecture
+
+The prototype follows a layered architecture.
+
+```text
+┌──────────────────────────────────────────────┐
+│                 Next.js UI                   │
+│                                              │
+│  Projects │ Chats │ Memory Toggle            │
+│  Memory Inspector │ Project Brief             │
+└──────────────────────┬───────────────────────┘
+                       │ REST API
+                       ▼
+┌──────────────────────────────────────────────┐
+│                FastAPI Backend               │
+│                                              │
+│ Project Routes                               │
+│ Message Routes                               │
+│ Memory Service                               │
+│ Hindsight Service                             │
+│ Groq Service                                  │
+│ Persona / Prompt Management                   │
+└──────────────┬───────────────────┬───────────┘
+               │                   │
+               ▼                   ▼
+       ┌───────────────┐   ┌──────────────────┐
+       │    SQLite     │   │  Hindsight Cloud │
+       │               │   │                  │
+       │ Projects      │   │ Retain           │
+       │ Chats         │   │ Recall           │
+       │ Messages      │   │ Mental Models    │
+       └───────────────┘   └────────┬─────────┘
+                                    │
+                                    ▼
+                             Project Memory
+                                    │
+                                    ▼
+                              Groq LLM API
+```
+
+---
+
+# Technology Stack
+
+## Frontend
+
+- Next.js
+- TypeScript
+- Tailwind CSS
+- App Router
+- React
+
+The frontend provides the workspace UI, project management, chat interface, memory controls, Memory Inspector, and Project Brief interface.
+
+## Backend
+
+- Python
+- FastAPI
+- Pydantic
+- SQLAlchemy
+
+The backend is responsible for:
+
+- API handling,
+- project management,
+- chat management,
+- memory orchestration,
+- Hindsight integration,
+- Groq integration,
+- prompt construction,
+- context handling,
+- and project isolation.
+
+## LLM
+
+**Groq API**
+
+Groq provides the model inference layer used to generate natural-language responses and evaluate whether conversational information should become durable memory.
+
+## Persistent Memory
+
+**Hindsight Cloud**
+
+Hindsight provides:
+
+- persistent memory storage,
+- semantic recall,
+- project-scoped memory retrieval,
+- and Mental Model generation.
+
+## Local Database
+
+**SQLite**
+
+SQLite stores application-level state such as:
+
+- projects,
+- chats,
+- messages,
+- project identifiers,
+- and other local application metadata.
+
+---
+
+# Groq and LLM Layer
+
+Groq is used as the inference layer.
+
+The backend does not allow the LLM to independently decide which external project memories it can access.
+
+Instead, the backend controls the context supplied to the model.
+
+The effective prompt context can include:
+
+```text
+System / Persona Instructions
+        +
+Current User Message
+        +
+Recent Current-Chat History
+        +
+Project Memory (only when enabled)
+        +
+Other explicitly permitted context
+```
+
+This separation is important because the LLM should not be treated as the memory database.
+
+Hindsight is the persistent memory system.
+
+Groq is the reasoning and response-generation layer.
+
+---
+
+# Hindsight Memory Layer
+
+Hindsight is the dedicated long-term memory layer of the system.
+
+Its role is fundamentally different from the local SQLite database.
+
+SQLite manages application state.
+
+Hindsight manages persistent semantic project knowledge.
+
+The system uses Hindsight primarily through two conceptual operations:
+
+```text
+RETAIN
+  ↓
+Store durable project knowledge
+
+RECALL
+  ↓
+Retrieve relevant project knowledge
+```
+
+Hindsight therefore acts as the project's long-term memory subsystem.
+
+---
+
+# Retain and Recall
+
+## Retain
+
+When a user sends a message, the backend can evaluate whether the information contains durable project knowledge.
+
+For example:
+
+```text
+"For this project, we will use the MERN stack."
+```
+
+This contains an explicit project decision.
+
+The memory evaluation pipeline can identify the durable fact:
+
+```text
+The project will use the MERN stack
+(MongoDB, Express, React, Node.js).
+```
+
+That information can then be retained in Hindsight.
+
+## Recall
+
+Later, in another chat, the user might ask:
+
+```text
+"What technology am I using?"
+```
+
+If memory is ON, the backend can query Hindsight for relevant memories.
+
+Hindsight may return the previously retained MERN information.
+
+The backend then supplies the retrieved memory to Groq.
+
+The model can answer using the project context.
+
+---
+
+# Project-Scoped Memory Isolation
+
+One of the most important architectural requirements is strict project isolation.
+
+Suppose:
+
+```text
+Project A → MERN
+Project B → Django + PostgreSQL
+```
+
+A question inside Project A must not retrieve Project B's Django information.
+
+The application therefore attaches a project-specific identifier to memory records.
+
+Conceptually:
+
+```text
+project:<unique-project-identifier>
+```
+
+For example:
+
+```text
+project:8bd66034-ba55-4989-96b1-9c7d1b45f51b
+```
+
+Memory recall is restricted using that project identity.
+
+The backend uses strict tag matching:
+
+```text
+tags = ["project:<UUID>"]
+tags_match = "all_strict"
+```
+
+This is an important defense because semantic similarity alone cannot define a security boundary.
+
+Two projects can discuss the same technology.
+
+Semantic search may therefore consider memories from both projects relevant.
+
+The project tag provides the hard boundary.
+
+---
+
+# UUID-Based Project Identity
+
+The local database originally uses an integer project ID for application-level relationships.
+
+However, an integer such as:
+
+```text
+project:12
+```
+
+can become problematic when a local SQLite database is deleted and recreated.
+
+The new database may generate another project with ID `12`.
+
+If Hindsight still contains memories associated with the previous `project:12`, a collision can occur.
+
+To avoid this, the application maintains a separate persistent UUID:
+
+```text
+project_identifier
+```
+
+Example:
+
+```text
+8bd66034-ba55-4989-96b1-9c7d1b45f51b
+```
+
+Hindsight therefore uses:
+
+```text
+project:<UUID>
+```
+
+rather than the recyclable SQLite integer.
+
+This prevents stale remote memory from being accidentally associated with a newly recreated local project.
+
+---
+
+# Memory Toggle
+
+The UI provides an explicit Memory ON/OFF control.
+
+## Memory ON
+
+When memory is ON:
+
+```text
+User Message
+      │
+      ▼
+Project-scoped Hindsight Recall
+      │
+      ▼
+Relevant Project Memories
+      │
+      ▼
+Groq
+      │
+      ▼
+Context-aware Response
+```
+
+The model can use relevant durable project information.
+
+## Memory OFF
+
+When memory is OFF:
+
+```text
+User Message
+      │
+      ▼
+Current Chat Context
+      │
+      ▼
+Groq
+      │
+      ▼
+Response
+```
+
+The backend does not perform project-memory recall.
+
+Previous project memories, Project Brief information, and Memory Inspector information are not used as long-term project context.
+
+This makes the memory control explicit and understandable to the user.
+
+---
+
+# Memory Inspector
+
+The Memory Inspector provides transparency into the memory system.
+
+When memory is ON, it displays the actual memories retrieved for the current interaction.
+
+It can expose information such as:
+
+- memory content,
+- relevance,
+- and how the system knows the information.
+
+For example:
+
+```text
+MEMORY ON
+
+Memory Chunk
+Relevance: 0.61
+
+The project uses the MERN stack
+(MongoDB, Express, React, Node.js).
+
+How I know this:
+Retrieved from project-scoped persistent memory.
+```
+
+The Memory Inspector is important because the application does not treat memory as an invisible black box.
+
+The user can inspect what project information was actually retrieved.
+
+This supports:
+
+- transparency,
+- debugging,
+- trust,
+- traceability,
+- and demonstration of Hindsight integration.
+
+The Memory Inspector is not intended to represent the entire Hindsight database.
+
+It displays the relevant retrieved results supplied by the backend for the current project context.
+
+---
+
+# Project Brief and Mental Models
+
+The Project Brief is a project-level synthesized summary generated from durable project memories.
+
+It is separate from an individual chat.
+
+A project may contain many chats and many retained memories.
+
+The Project Brief provides a higher-level representation of that accumulated project knowledge.
+
+Conceptually:
+
+```text
+Project Memories
+       │
+       ▼
+Hindsight Mental Model
+       │
+       ▼
+Project Brief
+```
+
+## Mental Models
+
+Hindsight Mental Models provide a mechanism for synthesizing information from underlying memories.
+
+Instead of treating every memory as an isolated sentence, a Mental Model can represent a broader understanding derived from project memories.
+
+For example, several durable memories may say:
+
+```text
+The frontend will use React.
+
+The backend will use Express.
+
+MongoDB will be used for persistence.
+
+Node.js will be used as the server runtime.
+```
+
+A Mental Model can synthesize this into a higher-level project understanding:
+
+```text
+The project uses the MERN stack.
+```
+
+The Project Brief can then present this synthesized project knowledge.
+
+---
+
+# Project Brief Generation
+
+The Project Brief is generated from project-scoped durable information.
+
+The system follows an isolation-first approach.
+
+Before creating or retrieving a Project Brief, the backend verifies that project-specific memory exists.
+
+A project with no durable memories should not inherit a Project Brief from another project.
+
+Therefore:
+
+```text
+No Project Memories
+        │
+        ▼
+Project Brief = Empty
+```
+
+Whereas:
+
+```text
+Project Memories
+        │
+        ▼
+Hindsight Mental Model
+        │
+        ▼
+Project Brief
+```
+
+The Project Brief can include information such as:
+
+- project overview,
+- technology stack,
+- architecture,
+- requirements,
+- decisions,
+- constraints,
+- implementation state,
+- and project history,
+
+but only when such information is actually represented in durable project memories.
+
+The system should not invent missing project information merely to make the brief look complete.
+
+---
+
+# Multiple Chats Within a Project
+
+A project can contain multiple independent chats.
+
+For example:
+
+```text
+Project: E-Commerce Platform
+
+├── Backend Development
+├── Frontend Development
+├── Database Design
+├── Authentication
+└── Deployment
+```
+
+Each chat has its own conversation history.
+
+However, all chats can share the same project-level memory namespace.
+
+Therefore a decision made in:
+
+```text
+Backend Development
+```
+
+can become available later in:
+
+```text
+Frontend Development
+```
+
+when it has been retained as durable project knowledge and memory is enabled.
+
+This provides continuity without merging the actual chat histories.
+
+---
+
+# Memory-Aware Response Generation
+
+The system distinguishes between:
+
+1. information explicitly provided in the current conversation,
+2. durable project memories,
+3. information not known to the project.
+
+When memory is ON, relevant project memories can be added to the model context.
+
+The model should then use those memories only when they are relevant.
+
+For example:
+
+```text
+User:
+What database are we using?
+```
+
+If the project memory contains:
+
+```text
+The project will use MongoDB.
+```
+
+the model can answer:
+
+```text
+You're using MongoDB.
+```
+
+The model does not need the user to repeat the information.
+
+---
+
+# Memory-Off Behavior
+
+Memory OFF is intentionally different from simply hiding the Memory Inspector.
+
+When memory is OFF:
+
+- Hindsight project recall is not performed.
+- Previous project memories are not supplied as context.
+- Project Brief information is not supplied as long-term memory context.
+- The assistant should not pretend to know project-specific information that was not provided in the current conversation.
+
+For example, if the project previously established:
+
+```text
+The project uses MERN.
+```
+
+and the user starts a new chat with memory OFF and asks:
+
+```text
+What technology am I using?
+```
+
+the assistant should not retrieve the old MERN memory.
+
+A suitable response is:
+
+```text
+I don't have enough information to know what technology
+you're using in this conversation because project memory is OFF.
+```
+
+This prevents accidental leakage of long-term project information.
+
+---
+
+# Current-Conversation Context
+
+Memory OFF does not mean the assistant must forget messages already visible in the current conversation.
+
+The application passes recent current-chat messages to the response-generation layer.
+
+Therefore:
+
+```text
+Current Chat History
+        │
+        ▼
+Available even when
+long-term memory is OFF
+```
+
+For example:
+
+```text
+User:
+This project uses Python.
+
+User:
+What language does my project use?
+```
+
+Even with memory OFF, the second question can be answered because the information exists in the current chat.
+
+This distinction is important:
+
+```text
+Current conversation context
+        ≠
+Persistent project memory
+```
+
+---
+
+# Memory Extraction and Gating
+
+Not every message should automatically become durable project memory.
+
+The system uses an evaluation step to determine whether information should be retained.
+
+The purpose is to avoid filling the long-term memory store with conversational noise.
+
+For example:
+
+```text
+User:
+Haha, that's funny.
+```
+
+does not normally represent useful project knowledge.
+
+Whereas:
+
+```text
+For this project, we will use MERN.
+```
+
+contains an explicit durable decision.
+
+The extraction layer is instructed to extract only information explicitly supported by the conversation.
+
+It should not invent facts such as:
+
+```text
+The project is a full-stack JavaScript application.
+```
+
+unless the user has actually established that fact or it is a justified direct description of an explicitly stated decision.
+
+It should also not infer:
+
+```text
+The user is migrating from another stack.
+```
+
+unless such a migration was explicitly stated.
+
+This prevents memory from becoming a source of fabricated project history.
+
+---
+
+# Persona System
+
+Each project can have a selected professional persona.
+
+Examples include:
+
+- Coding
+- Medical
+- Legal
+- Research
+- Business
+- General
+
+The persona influences the system instructions used for response generation.
+
+For example:
+
+```text
+Coding Persona
+```
+
+can encourage technically structured responses.
+
+A:
+
+```text
+Research Persona
+```
+
+can provide a research-oriented interaction style.
+
+The persona is separate from persistent memory.
+
+The architecture therefore distinguishes:
+
+```text
+Persona
+    +
+Current Conversation
+    +
+Optional Project Memory
+    +
+User Message
+    ↓
+LLM Response
+```
+
+---
+
+# End-to-End Data Flow
+
+## 1. User sends a message
+
+The frontend sends the message to the FastAPI backend.
+
+## 2. Backend identifies the project
+
+The backend determines the project associated with the current chat.
+
+The project's UUID is used for Hindsight operations.
+
+## 3. Current chat history is loaded
+
+Recent messages from the current conversation can be included as conversational context.
+
+## 4. Memory state is checked
+
+If memory is OFF:
+
+```text
+No Hindsight project recall
+```
+
+If memory is ON:
+
+```text
+Project-scoped Hindsight recall
+```
+
+## 5. Hindsight recall occurs
+
+The backend performs a semantic query constrained to the current project's UUID tag.
+
+Conceptually:
+
+```json
+{
+  "query": "relevant user question",
+  "tags": ["project:<project_uuid>"],
+  "tags_match": "all_strict",
+  "limit": 5
+}
+```
+
+## 6. Backend defense-in-depth filtering
+
+The backend additionally verifies that returned memories contain the expected project tag.
+
+Conceptually:
+
+```python
+expected_tag = f"project:{project_uuid}"
+
+results = [
+    memory
+    for memory in results
+    if expected_tag in memory.get("tags", [])
+]
+```
+
+This ensures that even if an external memory service returns unexpected semantic matches, the application does not blindly forward them to the LLM.
+
+## 7. Groq generates the response
+
+The backend combines the permitted context and sends it to Groq.
+
+## 8. Response is returned
+
+The generated response is returned to the frontend and displayed in the current chat.
+
+## 9. Memory evaluation occurs
+
+The conversation can be evaluated for durable project information.
+
+## 10. Durable information is retained
+
+If the information qualifies, it is retained in Hindsight under the project's UUID.
+
+---
+
+# Cross-Project Isolation and Security
+
+Cross-project isolation is one of the most important requirements of the prototype.
+
+The system must prevent this scenario:
+
+```text
+Project A
+Memory:
+"We use MERN."
+```
+
+from appearing inside:
+
+```text
+Project B
+```
+
+unless the information was explicitly established in Project B.
+
+The architecture addresses this through multiple layers.
+
+### Layer 1 — Unique Project UUID
+
+Every project has a persistent UUID.
+
+### Layer 2 — Hindsight Project Tags
+
+Memories are associated with:
+
+```text
+project:<UUID>
+```
+
+### Layer 3 — Strict Hindsight Tag Matching
+
+Recall requests use strict tag matching.
+
+### Layer 4 — Backend Post-Filtering
+
+The backend validates the returned tags before exposing the memories to the response-generation layer.
+
+### Layer 5 — Memory-Aware Prompt Rules
+
+The LLM is explicitly instructed to use only permitted project context.
+
+This creates defense in depth rather than relying on one component.
+
+---
+
+# Frontend Architecture
+
+The frontend is built using Next.js, TypeScript, React, and Tailwind CSS.
+
+The main responsibilities include:
+
+- project creation,
+- project selection,
+- chat creation,
+- chat navigation,
+- message display,
+- memory toggle,
+- Memory Inspector,
+- Project Brief,
+- persona selection,
+- and responsive workspace layout.
+
+The workspace is designed around multiple resizable regions so that users can adjust the amount of space allocated to:
+
+```text
+Project / Chat Navigation
+        │
+        ▼
+Chat Area
+        │
+        ▼
+Memory / Project Information
+```
+
+The interface supports draggable panel boundaries so the user can adjust panel widths according to their preference.
+
+Panel dimensions can be persisted locally so the layout remains consistent across refreshes.
+
+---
+
+# Backend Architecture
+
+The backend is implemented with FastAPI.
+
+Important service responsibilities include:
+
+## Project Service / Routes
+
+Responsible for:
+
+- creating projects,
+- retrieving project information,
+- handling project identifiers,
+- and Project Brief endpoints.
+
+## Message Routes
+
+Responsible for:
+
+- receiving chat messages,
+- identifying the project,
+- retrieving current-chat context,
+- invoking memory services,
+- invoking Groq,
+- and returning responses.
+
+## Memory Service
+
+Responsible for:
+
+- deciding how memory context is assembled,
+- retaining durable interactions,
+- retrieving relevant memory,
+- filtering retrieved results,
+- and exposing memory information to the frontend.
+
+## Hindsight Service
+
+Responsible for:
+
+- Hindsight API communication,
+- RETAIN,
+- RECALL,
+- project tag handling,
+- Mental Model handling,
+- and Project Brief generation.
+
+## Groq Service
+
+Responsible for:
+
+- LLM generation,
+- memory evaluation,
+- prompt construction,
+- persona instructions,
+- current-chat context,
+- and memory ON/OFF behavior.
+
+---
+
+# Database Architecture
+
+SQLite is used as the local application database.
+
+It stores application state rather than serving as the primary long-term semantic memory store.
+
+Conceptually:
+
+```text
+SQLite
+├── Projects
+├── Chats
+├── Messages
+└── Project Metadata
+```
+
+Hindsight stores the persistent semantic project memory:
+
+```text
+Hindsight
+├── Project Memories
+├── Memory Metadata
+└── Mental Models
+```
+
+The separation allows each system to focus on a specific responsibility.
+
+---
+
+# API Responsibilities
+
+The backend exposes API routes for the major application operations.
+
+Typical responsibilities include:
+
+### Project APIs
+
+- create project,
+- retrieve project,
+- retrieve Project Brief,
+- refresh Project Brief.
+
+### Chat APIs
+
+- create chat,
+- retrieve chat history,
+- send messages.
+
+### Memory APIs / Internal Services
+
+- retain durable information,
+- recall project memory,
+- inspect retrieved memory.
+
+The exact endpoint names may evolve during development, but the architectural responsibility remains separated between project management, conversations, and persistent memory.
+
+---
+
+# User Experience
+
+The intended user experience is:
+
+1. Create a project.
+2. Select a persona.
+3. Start a chat.
+4. Establish important project decisions.
+5. Let the memory system retain durable information.
+6. Start another independent chat.
+7. Enable memory.
+8. Ask about previously established project information.
+9. Receive a context-aware response.
+10. Inspect the actual memory retrieved by the system.
+11. View the Project Brief generated from accumulated project knowledge.
+
+The user therefore does not need to manually copy important information between every chat.
+
+---
+
+# Demo Workflow
+
+A simple demonstration can use the following sequence.
+
+## Step 1 — Create a Project
+
+Create a project such as:
+
+```text
+E-Commerce Platform
+```
+
+Select:
+
+```text
+Coding
+```
+
+as the persona.
+
+## Step 2 — Establish a Durable Decision
+
+In Chat 1:
+
+```text
+For this project, we will use the MERN stack:
+MongoDB, Express, React and Node.js.
+```
+
+The memory pipeline evaluates the statement and retains the project decision.
+
+## Step 3 — Open a New Chat
+
+Create another chat within the same project.
+
+The chat itself does not contain the previous conversation.
+
+## Step 4 — Test Memory OFF
+
+Turn Memory OFF.
+
+Ask:
+
+```text
+What technology are we using?
+```
+
+Because persistent project memory is disabled, the assistant should not retrieve the earlier project memory.
+
+## Step 5 — Turn Memory ON
+
+Turn Memory ON and ask the same question.
+
+The backend recalls the project-scoped MERN memory from Hindsight.
+
+The assistant can now answer using the retained project context.
+
+## Step 6 — Inspect Memory
+
+Open the Memory Inspector.
+
+Show the retrieved memory, relevance, and source information.
+
+## Step 7 — Show Project Brief
+
+After sufficient durable information exists, open the Project Brief.
+
+The brief should summarize only information available in the project's durable memory.
+
+## Step 8 — Demonstrate Isolation
+
+Create another project.
+
+For example:
+
+```text
+Healthcare Platform
+```
+
+Establish:
+
+```text
+This project will use Django and PostgreSQL.
+```
+
+Then verify that the first project still recalls MERN and does not retrieve Django/PostgreSQL information.
+
+---
+
+# Example Scenario
+
+Consider two projects.
+
+## Project A — E-Commerce
+
+Durable memory:
+
+```text
+The project will use MERN:
+MongoDB, Express, React and Node.js.
+```
+
+## Project B — Healthcare
+
+Durable memory:
+
+```text
+The project will use Django and PostgreSQL.
+```
+
+Now ask Project A:
+
+```text
+What database are we using?
+```
+
+Expected project context:
+
+```text
+MongoDB
+```
+
+Ask Project B:
+
+```text
+What database are we using?
+```
+
+Expected project context:
+
+```text
+PostgreSQL
+```
+
+The important property is that both projects may contain technically similar discussions, but the memory boundary is based on the project identifier rather than semantic similarity alone.
+
+---
+
+# Project Structure
+
+A representative project structure is:
+
+```text
+code_crafter/
+│
+├── backend/
+│   ├── app/
+│   │   ├── main.py
+│   │   ├── models/
+│   │   ├── schemas/
+│   │   ├── routes/
+│   │   └── services/
+│   │       ├── groq_service.py
+│   │       ├── hindsight_service.py
+│   │       └── memory_service.py
+│   │
+│   ├── tests/
+│   ├── requirements.txt
+│   ├── .env.example
+│   └── sql_app.db
+│
+├── frontend/
+│   ├── src/
+│   │   ├── app/
+│   │   ├── components/
+│   │   └── ...
+│   ├── package.json
+│   └── ...
+│
+└── README.md
+```
+
+The exact structure may evolve as the prototype develops.
+
+---
+
+# Environment Configuration
+
+Create a `.env` file inside the `backend` directory based on `.env.example`.
+
+Required configuration includes:
+
+```env
+GROQ_API_KEY=your_groq_api_key
+GROQ_MODEL=your_groq_model
+
+HINDSIGHT_API_KEY=your_hindsight_api_key
+HINDSIGHT_BASE_URL=your_hindsight_base_url
+HINDSIGHT_BANK_ID=your_hindsight_bank_id
+
+DATABASE_URL=your_database_url
+```
+
+Do not commit API keys or other secrets to the repository.
+
+---
+
+# Installation and Setup
+
+## Backend
+
+From the repository root:
+
 ```bash
 cd backend
+```
+
+Create a virtual environment:
+
+```bash
 python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+```
+
+Activate it on Windows:
+
+```powershell
+venv\Scripts\activate
+```
+
+Activate it on Linux/macOS:
+
+```bash
+source venv/bin/activate
+```
+
+Install dependencies:
+
+```bash
 pip install -r requirements.txt
+```
+
+Configure the `.env` file.
+
+Start the backend:
+
+```bash
 python -m app.main
 ```
 
-### Running Frontend
+---
+
+# Running the Frontend
+
+Open another terminal:
+
 ```bash
 cd frontend
+```
+
+Install dependencies:
+
+```bash
 npm install
+```
+
+Start the development server:
+
+```bash
 npm run dev
 ```
 
-## Testing & Verification
-Unit tests and integration tests can be run in the `backend` directory:
-```bash
-pytest
-```
-Verification scripts confirm UUID isolation, memory extraction behavior, Project Brief generation, and Memory OFF adherence.
+Open the development URL provided by Next.js.
 
-## Known Limitations & Future Improvements
-- SQLite is used instead of a production database like PostgreSQL.
-- No user authentication system is currently implemented.
-- Future improvements include expanding the Project Brain (knowledge synthesis) and supporting more complex cross-referencing capabilities.
+---
+
+# Memory and Project Isolation Verification
+
+The prototype includes verification scenarios designed to test the most important memory guarantees.
+
+## Empty Project
+
+A new project with no durable memories should not inherit information from another project.
+
+Expected behavior:
+
+```text
+Project Brief → Empty
+Memory Inspector → 0 project memories
+```
+
+## Single Project Memory
+
+After establishing:
+
+```text
+The project uses MERN.
+```
+
+the project should retrieve that information when memory is enabled.
+
+## Cross-Project Isolation
+
+If Project A uses MERN and Project B uses Django/PostgreSQL:
+
+```text
+Project A Recall → MERN
+Project B Recall → Django/PostgreSQL
+```
+
+Neither project should retrieve the other's memory.
+
+## Untagged Memory Protection
+
+Untagged memories should not be accepted as project context.
+
+The backend applies defense-in-depth filtering so that a memory must contain the expected project tag before it is forwarded as project memory.
+
+## Database Reset Protection
+
+Because Hindsight uses UUID-based project identifiers, recreating the local SQLite database cannot accidentally reuse an old Hindsight project namespace.
+
+---
+
+# Testing
+
+The project includes automated and live verification for important behaviors.
+
+Testing areas include:
+
+- memory retention,
+- memory recall,
+- Memory ON/OFF behavior,
+- current-chat context,
+- project isolation,
+- untagged-memory filtering,
+- Project Brief generation,
+- Mental Model configuration,
+- UUID persistence,
+- and application restart behavior.
+
+Testing is particularly important for the memory layer because incorrect memory boundaries can cause unrelated project information to enter an LLM prompt.
+
+---
+
+# Design Decisions
+
+## Why Hindsight?
+
+Hindsight is used as a dedicated long-term memory layer instead of implementing semantic memory entirely inside the application database.
+
+This provides a clear separation:
+
+```text
+Application State → SQLite
+Long-Term Semantic Memory → Hindsight
+Language Generation → Groq
+```
+
+## Why UUIDs?
+
+Integer database IDs can be reused after destructive local database resets.
+
+UUIDs provide a persistent project identity suitable for external memory systems.
+
+## Why strict tags?
+
+Semantic similarity is not an adequate isolation mechanism.
+
+The system must first identify the correct project namespace and then perform semantic retrieval inside that namespace.
+
+## Why defense-in-depth filtering?
+
+The backend should not blindly trust an external retrieval service.
+
+The expected project tag is checked again before retrieved memories become LLM context.
+
+## Why a Memory Toggle?
+
+Users should have explicit control over whether persistent project memory participates in an interaction.
+
+## Why a Memory Inspector?
+
+Persistent memory can otherwise feel invisible.
+
+The inspector makes retrieval observable and demonstrates exactly what information is being supplied as memory context.
+
+## Why Mental Models?
+
+Raw memories are individual pieces of durable information.
+
+Mental Models allow higher-level project knowledge to be synthesized from those underlying memories, making them useful for generating a Project Brief.
+
+---
+
+# Current Limitations
+
+This prototype is primarily focused on demonstrating the project-scoped persistent-memory architecture.
+
+Current limitations may include:
+
+- SQLite is used as the local application database.
+- The prototype may not yet include production-grade authentication and authorization.
+- Memory extraction and consolidation depend on LLM evaluation.
+- Repeated conversational statements can result in multiple similar memory records.
+- Hindsight and Groq API availability/rate limits can affect asynchronous memory processing.
+- Project Brief generation depends on sufficient durable project memories.
+- The current prototype is not intended to be a complete production SaaS platform.
+
+---
+
+# Future Roadmap
+
+## 1. Stronger Memory Consolidation
+
+Improve duplicate detection and consolidation so repeated statements such as:
+
+```text
+The project uses MERN.
+```
+
+do not unnecessarily create multiple equivalent memories.
+
+## 2. Advanced Memory Management
+
+Allow users to:
+
+- inspect memories,
+- edit memories,
+- delete memories,
+- pin important memories,
+- and control memory retention.
+
+## 3. Improved Project Brain
+
+Expand the Project Brief into a richer Project Brain that can synthesize:
+
+- architecture,
+- requirements,
+- decisions,
+- constraints,
+- implementation status,
+- dependencies,
+- risks,
+- and historical changes.
+
+## 4. Authentication
+
+Add production-grade user authentication and authorization.
+
+## 5. Multi-User Projects
+
+Allow multiple users to collaborate within the same project while maintaining appropriate access controls.
+
+## 6. Production Database
+
+Move application state from SQLite to a production-grade database where appropriate.
+
+## 7. Better Observability
+
+Add detailed observability for:
+
+- memory retention,
+- memory recall,
+- relevance,
+- Project Brief generation,
+- Mental Model updates,
+- and LLM context construction.
+
+## 8. Advanced Memory Controls
+
+Provide controls for:
+
+- per-chat memory,
+- project memory,
+- temporary memory,
+- memory expiration,
+- and user-controlled memory policies.
+
+## 9. Additional Personas
+
+Expand the persona system with specialized professional workflows.
+
+---
+
+# Why This Approach Matters
+
+The key challenge in persistent AI memory is not simply storing information.
+
+The difficult part is deciding:
+
+- what should be remembered,
+- where it should be remembered,
+- when it should be retrieved,
+- what should never be retrieved,
+- how memories should be synthesized,
+- and how users can understand and control the process.
+
+This project addresses these requirements through a layered architecture.
+
+```text
+                 ┌─────────────────────┐
+                 │     User Message     │
+                 └──────────┬──────────┘
+                            │
+                            ▼
+                 ┌─────────────────────┐
+                 │    Current Chat     │
+                 │      Context        │
+                 └──────────┬──────────┘
+                            │
+                     Memory ON?
+                       /        \
+                     NO          YES
+                     │            │
+                     │            ▼
+                     │    ┌───────────────┐
+                     │    │    Hindsight  │
+                     │    │ Project Recall│
+                     │    └───────┬───────┘
+                     │            │
+                     │            ▼
+                     │    Project-Scoped
+                     │       Memories
+                     │            │
+                     └──────┬─────┘
+                            │
+                            ▼
+                 ┌─────────────────────┐
+                 │    Groq LLM Layer   │
+                 └──────────┬──────────┘
+                            │
+                            ▼
+                 ┌─────────────────────┐
+                 │    AI Response      │
+                 └─────────────────────┘
+```
+
+The architecture therefore combines:
+
+- independent conversations,
+- persistent project memory,
+- strict project isolation,
+- user-controlled memory,
+- transparent memory inspection,
+- project-level knowledge synthesis,
+- and LLM-based response generation.
+
+The result is a workspace where the AI can remember a project's important knowledge without treating every conversation or every project as one global memory pool.
+
+---
+
+# Conclusion
+
+The Hack With Hyderabad 3.0 prototype demonstrates a project-centric approach to persistent AI memory.
+
+Instead of treating memory as one global collection, the system creates explicit project boundaries.
+
+Within each project:
+
+```text
+Multiple Independent Chats
+            │
+            ▼
+   Shared Project Memory
+            │
+            ▼
+      Hindsight Recall
+            │
+            ▼
+      Groq Response
+```
+
+Across projects:
+
+```text
+Project A Memory
+      ✕
+Project B Memory
+```
+
+The architecture combines **Next.js**, **FastAPI**, **Groq**, **Hindsight Cloud**, and **SQLite** to demonstrate how persistent AI context can be made useful while remaining scoped, inspectable, and controllable.
+
+The most important principle of the prototype is:
+
+> **An AI should remember what matters to a project, across conversations, without allowing unrelated projects to become part of that memory.**
